@@ -4,7 +4,7 @@
 > every session, so it is the first thing any new session knows about this project.
 > **Keep it true.** See "Maintaining this file" at the bottom — updating it is not optional.
 
-**Last verified:** 2026-09-12 13:05 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`** — sonnet-5 3/3, deepseek-v3.2 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `anthropic/claude-sonnet-5` for chat, `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
+**Last verified:** 2026-09-12 13:05 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`** — deepseek-v3.2 13/13, sonnet-5 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `anthropic/claude-sonnet-5` for chat, `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
 The grouping is no longer unpinned: `test_grouping.py` asserts it end-to-end against the real models with zero external side effects, and is the preflight to run before recording.
 
 ---
@@ -233,17 +233,26 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
 
   | model | result | cost/run | wall |
   |---|---|---|---|
+  | `deepseek/deepseek-v3.2` | **13/13** under the test | ~$0.01 | 36-48s |
   | `anthropic/claude-sonnet-5` | **3/3** (2 by hand + 1 under the test) | ~$0.10-0.15 | 76s |
-  | `deepseek/deepseek-v3.2` | **3/3** under the test | ~$0.01 | 41-47s |
   | `deepseek/deepseek-chat-v3.1` | 1/2 — one run lost #3 entirely | ~$0.01 | — |
   | `openai/gpt-5-mini` | over-grouped to 6 items and invented a 10th action item | — | — |
 
-  **`deepseek/deepseek-v3.2` is the surprise**: 3/3 on the full assertion set at ~1/10th the cost
-  and ~40% faster, and it has **15 provider endpoints (11 with `response_format`)** against
-  sonnet-5's 10 — more breadth against the 429 that cost a real recurrence link earlier today.
-  It also links #3↔#4 at the moment #4 is filed, which sonnet-5 usually refuses. Three runs is a
-  small sample against sonnet-5's longer history, so **sonnet-5 stays the recording model**; v3.2
-  is the cheap one to iterate on and the fallback if sonnet-5 starts rate-limiting.
+  **`deepseek/deepseek-v3.2` now has the STRONGER evidence base, not the weaker one.** 13 graded
+  runs, all correct — group `{3,4,7,8}`, #5 and #9 rejected, count 4, exactly 2 escalations, every
+  time — at ~1/10th the cost and ~40% faster, with **15 provider endpoints (11 with
+  `response_format`)** against sonnet-5's 10. It also links #3↔#4 at the moment #4 is filed, which
+  sonnet-5 usually refuses (sonnet forms the thread later, via #8). sonnet-5 has only 3 runs, 2 of
+  them hand-checked before the test existed, so the earlier "small sample" objection now cuts the
+  other way.
+  **Be honest about what 13/13 does and does not prove.** Zero failures in 13 trials bounds the
+  true failure rate at roughly **23%** at 95% confidence (rule of three, 3/n) — it is not proof of
+  a 99% model. sonnet-5's 3 runs bound essentially nothing. Neither sample is large; v3.2's is
+  simply 4x larger. ~30 runs would be needed to bound failure under 10%, which is ~$0.30 and
+  ~22 minutes on v3.2 and impractical on sonnet-5.
+  **Either is defensible for the recording. v3.2 is the better-evidenced choice**; sonnet-5 is the
+  conservative one on reputation rather than on measurement. The preflight makes the difference
+  small either way, because a bad run is caught before it is recorded.
 - **Recall bands RE-MEASURED for the new embedder, and they still overlap.** On
   `openai/text-embedding-3-small`: weakest TRUE cross-meeting pair **0.2425** (#4↔#8), strongest
   UNRELATED **0.4121** (#6↔#9). Second independent confirmation that **no single cutoff separates**
@@ -496,7 +505,8 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   ```
 
   A red `FAIL` line names what drifted. Re-run; if it fails twice, switch `LLM_MODEL` to
-  `deepseek/deepseek-v3.2` (3/3 measured, ~$0.01/run) rather than recording a degraded story.
+  `deepseek/deepseek-v3.2` (**13/13** measured, ~$0.01/run, ~40s) rather than recording a
+  degraded story. On the measured evidence v3.2 is the safer default of the two.
 - **POSTFLIGHT, after the real run.** `.venv/bin/python test_grouping.py --check-db items.db`
   grades what actually landed in the database. No model calls, no cost, instant. This is how you
   find out whether #9 joined before you narrate it.
