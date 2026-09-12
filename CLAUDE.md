@@ -4,7 +4,8 @@
 > every session, so it is the first thing any new session knows about this project.
 > **Keep it true.** See "Maintaining this file" at the bottom — updating it is not optional.
 
-**Last verified:** 2026-09-12 12:20 (paid models, live Jira + live Slack, **Socket Mode connected**) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `anthropic/claude-sonnet-5` for chat, `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
+**Last verified:** 2026-09-12 13:05 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`** — sonnet-5 3/3, deepseek-v3.2 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `anthropic/claude-sonnet-5` for chat, `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
+The grouping is no longer unpinned: `test_grouping.py` asserts it end-to-end against the real models with zero external side effects, and is the preflight to run before recording.
 
 ---
 
@@ -57,6 +58,7 @@ externally-managed, so `pip install` into it is blocked. `.venv` was created wit
 | `scheduler.py` | `run_n_cycle`, `handle_config_command` (`/groundhogloop`) |
 | `slack_listener.py` | Socket Mode receiver: buttons, replies, slash command |
 | `demo.py` | Traceable CLI + the `--fake-llm` offline stubs |
+| `test_grouping.py` | The grouping regression test. The repo's only test. Run it before recording. |
 | `adapters/_http.py` | `AdapterBase`: dry-run gate, HTTP, `CALL_LOG` |
 | `adapters/ticket_base.py`, `ticket_manager.py`, `jira_adapter.py`, `clickup_adapter.py` | `TicketAdapter` ABC, Jira, ClickUp, `TicketManager` |
 | `adapters/notifier_base.py`, `notifier_manager.py`, `slack_adapter.py`, `teams_adapter.py` | `NotifierAdapter` ABC, Slack, Teams, `NotifierManager` |
@@ -225,16 +227,53 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   `_is_routing_rejection` now drops the preference and retries. Verified: sonnet-5 went from
   hard failure to `{'ok': True}` with one warning.
 - **Model choice measurably changes the answer — measured, not assumed.** Same transcripts, same
-  prompts, only `LLM_MODEL` varied, grouping compared against {#3,#4,#7,#8}:
-  `anthropic/claude-sonnet-5` **2/2** runs correct (~$0.10-0.15/run);
-  `deepseek/deepseek-chat-v3.1` **1/2** (one run lost #3 entirely, ~$0.01/run);
-  `openai/gpt-5-mini` over-grouped to 6 items and invented a 10th action item.
+  prompts, only `LLM_MODEL` varied, grouping compared against {#3,#4,#7,#8}. The last two rows were
+  measured by `test_grouping.py` (full assertion set: group, #5 and #9 rejected, count 4, exactly 2
+  escalations), the first two by hand before the test existed:
+
+  | model | result | cost/run | wall |
+  |---|---|---|---|
+  | `anthropic/claude-sonnet-5` | **3/3** (2 by hand + 1 under the test) | ~$0.10-0.15 | 76s |
+  | `deepseek/deepseek-v3.2` | **3/3** under the test | ~$0.01 | 41-47s |
+  | `deepseek/deepseek-chat-v3.1` | 1/2 — one run lost #3 entirely | ~$0.01 | — |
+  | `openai/gpt-5-mini` | over-grouped to 6 items and invented a 10th action item | — | — |
+
+  **`deepseek/deepseek-v3.2` is the surprise**: 3/3 on the full assertion set at ~1/10th the cost
+  and ~40% faster, and it has **15 provider endpoints (11 with `response_format`)** against
+  sonnet-5's 10 — more breadth against the 429 that cost a real recurrence link earlier today.
+  It also links #3↔#4 at the moment #4 is filed, which sonnet-5 usually refuses. Three runs is a
+  small sample against sonnet-5's longer history, so **sonnet-5 stays the recording model**; v3.2
+  is the cheap one to iterate on and the fallback if sonnet-5 starts rate-limiting.
 - **Recall bands RE-MEASURED for the new embedder, and they still overlap.** On
   `openai/text-embedding-3-small`: weakest TRUE cross-meeting pair **0.2425** (#4↔#8), strongest
   UNRELATED **0.4121** (#6↔#9). Second independent confirmation that **no single cutoff separates**
   the populations. 0.15 keeps ~0.09 of headroom under the weakest true pair.
   `RECURRENCE_MAX_CANDIDATES` raised 5 → 8 so recall can never truncate a true pair out of a
   shortlist (it caps candidates *per adjudication call*, not calls per run).
+- **THE GROUPING IS PINNED BY A TEST (2026-09-12, 13:05).** `test_grouping.py` — the repo's first
+  and only test. `.venv/bin/python test_grouping.py` runs all three transcripts through
+  `pipeline.process_transcript` against the **real** models (fake LLM would defeat the point: model
+  drift is what it catches) and asserts: the thread forms **one** group of
+  {ETL-alert, staging-sync, checkpoint-design-doc, completion-marker}; the test-data seeding item
+  and the on-call dashboard item are **not** in it; peak occurrence count is **4**; **exactly 2**
+  escalations fire. Exit 0/1, so it is scriptable.
+  - **Zero side effects, verified.** `DRY_RUN=true` and a temp `DB_PATH` are forced into
+    `os.environ` *before* `import config`, because `config.reload()` runs at import and
+    `AdapterBase.dry_run` reads `config.DRY_RUN`. After a full live run `items.db` was
+    **byte-identical** (md5 `bfc0d1e8…` before and after) and no KAN issue was created.
+  - **Items are matched by text predicate, never by id.** Ids only come out 1–9 when extraction
+    yields exactly 3/3/3, which is not guaranteed. A predicate matching zero or ≥2 items is itself
+    a FAIL, and the failure dumps every extracted item so a matcher bug is distinguishable from a
+    model regression — which is exactly what happened: the first three v3.2 runs "failed" on the
+    `completion_marker` matcher requiring both "marker" and "batch", not on the grouping.
+  - **The assertions were validated against a known-good result before being trusted.**
+    `--check-db items.db` grades the hand-confirmed KAN-44…52 database (group `rg-75a92b527f`,
+    {3,4,7,8}, count 4) and passes. That mode runs no models, costs nothing, and is how you check
+    **after** the real recording run whether #9 joined.
+  - **Escalations are counted twice, independently**: from `ItemResult.recurrence_alerted` via the
+    `on_event` hook, and cross-checked against Slack `CALL_LOG` entries whose `body["blocks"]` is
+    `None` — the sharp discriminator, since only `recurrence_alert` posts without an `item=`.
+    A mismatch prints a warning.
 - **The recall stage was NOT the cause of the false positives.** Checked against the old stored
   1024-d vectors: #5↔#3 was **0.1811** and #9↔#3 **0.3263** under the old embedder — both already
   above the 0.15 cutoff, both already shortlisted in the "verified" run. Identical shortlists,
@@ -260,18 +299,38 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   demo that must not degrade, add a personal provider key at
   openrouter.ai/settings/integrations to get off the shared pool.
   **Lesson: a fail-closed adjudicator turns a provider hiccup into a silently weaker demo.**
-- **Whether #9 joins the group is still a coin-flip, on every model tried.** Across 7 runs
-  `{#3,#4,#7,#8}` is stable but #9 ("add the warehouse batch to the on-call dashboard") drifts in
-  and out. When it joins, the justification is usually a **transferred quote** — sonnet-5 linked it
-  by citing *"the nightly ETL job failed silently again on Tuesday"*, which is evidence that **#3**
-  recurred, not that #9 is what recurred. The `WHOSE repeat flag it is` rule suppresses most of
-  these; it does not eliminate them, and one accepted link in the final live run still leaned on a
-  candidate's context at `medium` confidence.
-- **Grouping is not reproducible run-to-run, and the demo story depends on it.** Before the two
-  fixes, three consecutive sonnet-5 runs gave `{3,4,7,8,9}`, `{3,4,7,8}` and `{3,8}` — the last
-  with **zero escalations**, which would have silently killed the demo. After the fixes two runs in
-  a row were correct, but nothing *pins* this: there is still no regression test, and the failure
-  mode is quiet.
+- **#9 still drifts, but it is now DETECTED rather than unsuppressed.** #9 ("add the warehouse
+  batch to the on-call dashboard") joined the group in earlier runs; when it does, the
+  justification is usually a **transferred quote** — sonnet-5 once linked it by citing *"the
+  nightly ETL job failed silently again on Tuesday"*, which is evidence that **#3** recurred, not
+  #9. It stayed out of all 4 measured runs today (sonnet-5 1/1, v3.2 3/3), and `test_grouping.py`
+  now asserts its rejection by name.
+  **Deliberately NOT suppressed further.** The obvious guard — reject a link whose
+  `recurrence_hint` quote comes from the candidate's context rather than the new item's — would
+  also kill **#8**, whose accepted link rests on exactly such a transferred quote (`'the nightly
+  ETL job failed silently again on Tuesday...' (01 Incident Retro)`). That guard shrinks the group
+  to {3,4,7} and loses an escalation. Tightening the prompt is worse: an earlier one-sided version
+  of the `WHOSE repeat flag` rule suppressed the genuine #3↔#4 link. Detect, don't suppress.
+- **What a misfiring #9 looks like on screen, if it happens during a recording.** It is loud, not
+  quiet — the tell is the **escalation count: 2 is correct, 3 means #9 joined.** In order:
+  the demo trace prints `-> RECURRING occurrence #5, group rg-…` in magenta instead of
+  `-> new (no candidate survived adjudication; …)` in green; a **third**
+  `RECURRENCE ESCALATION — occurrence #5 >= threshold of 3` fires a `#eng-retro` post reading
+  *"This keeps coming back -- occurrence #5"*; the Jira title becomes
+  `[Recurring x5] Add the warehouse batch job to the on-call dashboard`; the description gains a
+  `RECURRING ISSUE -- occurrence #5` block; a fresh `This issue has recurred (occurrence #5)`
+  comment lands on every earlier ticket in the group; `bump_group_count` rewrites every member's
+  count 4 → 5 so `--list` shows `[recurring x5]` on all five; and Priya's DM gains
+  `Note: this is occurrence #5 of a recurring issue`.
+  **Leading indicator:** in a good run #9's `recurrence_signal` is `NULL`. When extraction attaches
+  Marcus's *"third time … August retro, sprint 42"* line to #9 instead of #7, #9 is about to be
+  linked. `test_grouping.py` prints this on every run.
+- **Grouping variance is now bounded by a test, not by hope.** Before the two fixes, three
+  consecutive sonnet-5 runs gave `{3,4,7,8,9}`, `{3,4,7,8}` and `{3,8}` — the last with **zero
+  escalations**, which would have silently killed the demo. The failure mode is still quiet, but it
+  is no longer undetected: **4 graded runs since the fixes are 4/4 correct** (sonnet-5 1, v3.2 3),
+  and `test_grouping.py` turns a silent degradation into a red `FAIL` line before you record.
+  It does not make the model deterministic — it makes a bad run visible.
 - **`anthropic/claude-sonnet-5` reliably refuses #3↔#4 at the moment #4 is filed.** In every
   sonnet run it answered `not the same (low)` for staging-sync vs ETL-alerting, under both the
   original and the tightened prompt. The thread still forms, but only later via #8 — which is why
@@ -312,8 +371,8 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   different workflow and different transition names; `JIRA_STATUS_MAP` is per-workspace.
 - **Slack DMs all go to one person.** `SLACK_USER_MAP` maps dana/sam/priya/jules/marcus/rachel
   to `U0C26ANN4KS` deliberately, so a demo can exercise the button path. Not a real routing test.
-- **No test suite.** All verification was ad-hoc inline scripts, none committed.
-- **Not a git repo.** No version control has been initialised.
+- **`test_grouping.py` is the ONLY test.** It pins the grouping and nothing else. The button path, scheduler idempotence, per-adapter failure isolation, the JSON-mode fallback and the dimension guard are all still verified only by ad-hoc inline scripts that were never committed.
+- **The test cannot prove a model is reliable, only that a given run was correct.** 3 runs is a small sample and the adjudicator is non-deterministic. Run it immediately before recording; a pass an hour ago is not a pass now.
 - **Teams DM is a degraded path** — a Workflows webhook is one-way, so Teams gets a
   free-text prompt, never buttons (`supports_buttons = False`).
 
@@ -412,15 +471,13 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
 
 ## Next steps (suggested order)
 
-1. **Pin the grouping in a test — this is now the top priority by a distance.** Every recurrence
-   decision is the model's, with no numeric backstop, and this session watched the grouping swing
-   between `{3,4,7,8,9}`, `{3,4,7,8}` and `{3,8}` on the *same* config. Two bugs that each silently
-   destroyed the group were found by reading logs, not by any test. Assert: the thread is
-   `{#3,#4,#7,#8}`, #5 is rejected, at least one escalation fires. `DRY_RUN=true DB_PATH=...` runs
-   the whole pipeline with real models and zero external side effects — that is the harness.
-2. **Decide the #9 policy and encode it.** It drifts in and out on every model tried, and when it
-   joins the justification is usually a quote transferred from another item. Either accept it
-   deliberately (and stop calling it a false positive) or tighten the rule further.
+1. ~~**Pin the grouping in a test.**~~ **DONE** — `test_grouping.py`, see the ✅ section.
+   The #9 policy is settled too: **detect, don't suppress**, because the only clean suppression
+   rule also kills #8. The test asserts #9's rejection by name and prints its `recurrence_signal`
+   as a leading indicator.
+2. **Extend the test to the other verified-but-unpinned properties.** The button path making zero
+   LLM calls, scheduler idempotence and per-adapter failure isolation were all proved by hand and
+   none of them is pinned. The button-path one is cheap and needs no model at all.
 3. **Try a transcript with no "again"/"third time" language** and see whether grouping survives
    without `recurrence_signal`. That is the known weak spot.
 4. Bring up ClickUp and Teams the same way Jira was: credentials in, then probe the real
@@ -430,6 +487,19 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
 6. `git init`. Still no version control, and this session rewrote the recurrence core.
 
 ### Demo-day notes (2026-09-12)
+
+- **PREFLIGHT, immediately before you record.** One command, ~76s on sonnet-5, no Jira issue, no
+  Slack message, `items.db` untouched:
+
+  ```bash
+  .venv/bin/python test_grouping.py            # exit 0 = safe to record
+  ```
+
+  A red `FAIL` line names what drifted. Re-run; if it fails twice, switch `LLM_MODEL` to
+  `deepseek/deepseek-v3.2` (3/3 measured, ~$0.01/run) rather than recording a degraded story.
+- **POSTFLIGHT, after the real run.** `.venv/bin/python test_grouping.py --check-db items.db`
+  grades what actually landed in the database. No model calls, no cost, instant. This is how you
+  find out whether #9 joined before you narrate it.
 
 - `demo.py --sample all --reset-db` is **live** against Jira KAN and Slack #eng-retro. Each
   run creates 9 new Jira issues and sends 11 Slack messages, and costs roughly **$0.10-0.15**
