@@ -9,8 +9,8 @@ from a laptop.
 Setup (api.slack.com/apps):
   1. Socket Mode -> Enable, generate an app-level token (xapp-...) with
      connections:write  ->  SLACK_APP_TOKEN
-  2. OAuth & Permissions -> bot scopes: chat:write, im:write, users:read,
-     users:read.email, commands  ->  install, copy xoxb-...  ->  SLACK_BOT_TOKEN
+  2. OAuth & Permissions -> bot scopes: chat:write, im:write, im:history,
+     users:read, users:read.email, commands  ->  install, copy xoxb-...  ->  SLACK_BOT_TOKEN
   3. Interactivity -> on (Socket Mode needs no request URL)
   4. Event Subscriptions -> subscribe to bot events: message.im
   5. Slash Commands -> /groundhogloop
@@ -166,7 +166,10 @@ def main() -> int:
         "connecting over Socket Mode -- buttons and replies will reach this process. "
         "Ctrl-C to stop."
     )
-    SocketModeHandler(app, config.SLACK_APP_TOKEN).start()
+    try:
+        SocketModeHandler(app, config.SLACK_APP_TOKEN).start()
+    except KeyboardInterrupt:
+        log.info("Socket Mode listener stopped")
     return 0
 
 

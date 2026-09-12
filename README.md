@@ -17,6 +17,13 @@ transcript ─▶ extract ─▶ embed ─▶ recurrence check ─▶ store
                           free text    ───────────┘ (classified by the LLM)
 ```
 
+![Groundhog Loop system design: transcript through recurrence detection, Jira and Slack fan-out, escalation, and the Slack reply paths](assets/groundhog-loop-system.svg)
+
+The diagram reflects the demo configuration: Jira and Slack run live when
+configured; ClickUp and Teams remain dry-run. Slack button choices write the
+status directly to SQLite and Jira—no model call—while free-text replies are
+classified by the configured model.
+
 A scheduler nudges owners as due dates approach, escalates what goes stale to
 the team channel, and — the point of the whole thing — shouts when an item is
 provably a repeat offender.
@@ -26,7 +33,7 @@ provably a repeat offender.
 ```bash
 python3 -m venv --system-site-packages .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env          # add OPENROUTER_API_KEY; everything else is optional
+cp env.example .env           # add OPENROUTER_API_KEY; everything else is optional
 
 .venv/bin/python demo.py --sample all --reset-db
 ```

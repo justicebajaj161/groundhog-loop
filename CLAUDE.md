@@ -3,9 +3,15 @@
 > **This file is the session handoff.** Claude Code loads it automatically at the start of
 > every session, so it is the first thing any new session knows about this project.
 > **Keep it true.** See "Maintaining this file" at the bottom — updating it is not optional.
+> `AGENTS.md` is the tool-agnostic twin of this file; keep the two in step.
 
-**Last verified:** 2026-09-12 13:05 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`**, **default model switched to `deepseek/deepseek-v3.2`** on 14/14 vs sonnet-5's 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `deepseek/deepseek-v3.2` for chat (switched from `anthropic/claude-sonnet-5` once the regression test made the comparison measurable), `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
+**Last verified:** 2026-09-12 14:57 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`**, **default model switched to `deepseek/deepseek-v3.2`** on 14/14 vs sonnet-5's 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `deepseek/deepseek-v3.2` for chat (switched from `anthropic/claude-sonnet-5` once the regression test made the comparison measurable), `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-62 … KAN-70, group {3,4,7,8}; postflight PASS; Slack buttons and a 10-second demo follow-up loop were verified live.**
 The grouping is no longer unpinned: `test_grouping.py` asserts it end-to-end against the real models with zero external side effects, and is the preflight to run before recording.
+**2026-09-12 14:05:** added `AGENTS.md` (tool-agnostic port of this file) and `demo_script.html` (system diagram + 2-minute narration). `test_grouping.py --check-db items.db` re-graded the live DB: **PASS** — group `rg-75a92b527f` = {3,4,7,8}, count 4, #5 and #9 rejected, #9's `recurrence_signal` NULL. The setup references now consistently name the checked-in `env.example` template; no pipeline logic changed.
+**2026-09-12 14:16:** full live demo created **KAN-62 … KAN-70**. The postflight audit passed with group {#3, #4, #7, #8}; Jira read-back confirmed every ticket. Slack authenticated as `followup` and remains in `#eng-retro`. Its token lacks history scopes, so alert history cannot be read back; this does not affect sending.
+**2026-09-12 14:27:** reinstalled Slack token now has `im:history`; a read-back returned 70 DM messages. `#eng-retro` history remains unavailable because `channels:history` is not installed. `message.im` is subscribed; the remaining free-text test is to run `slack_listener.py` and send a DM.
+**2026-09-12 14:57:** added `scheduler.py --demo-followup` for recordings: it DMs only `in_progress` and `blocked` items every 10 seconds, ignores due dates, never posts repeated channel escalations, and does not alter normal scheduler timestamps. Live test: Slack button set #5 In progress; one full plus part of a second 10-second cycle sent five readable DMs for #5/#6/#7. Jira read-back: KAN-66/67 In Progress, KAN-68 In Progress (the project's `blocked` mapping), KAN-69/70 Done.
+**2026-09-12 14:57:** `slack_listener.py` now catches `Ctrl-C` and exits with a normal log line instead of a KeyboardInterrupt traceback.
 
 ---
 
@@ -38,6 +44,7 @@ transcript ─▶ extract ─▶ embed ─▶ recall ─▶ LLM adjudicate ─�
 .venv/bin/python demo.py --button 3 done                       # no LLM
 .venv/bin/python demo.py --reply 3 "blocked on vendor"         # LLM
 .venv/bin/python slack_listener.py                             # Socket Mode receiver
+.venv/bin/python scheduler.py --demo-followup                  # every 10s: demo-only follow-ups
 ```
 
 **Use `.venv/bin/python`, not `python3`.** This machine's Python is PEP 668
@@ -55,7 +62,7 @@ externally-managed, so `pip install` into it is blocked. `.venv` was created wit
 | `recurrence.py` | `cosine_similarity`, `shortlist_candidates` (recall), `check_recurrence` (orchestrates both stages) |
 | `storage.py` | SQLite `items` table, `Status` enum |
 | `pipeline.py` | Orchestration shared by demo / scheduler / listener |
-| `scheduler.py` | `run_n_cycle`, `handle_config_command` (`/groundhogloop`) |
+| `scheduler.py` | `run_n_cycle`, `run_demo_followup_cycle`, `handle_config_command` (`/groundhogloop`) |
 | `slack_listener.py` | Socket Mode receiver: buttons, replies, slash command |
 | `demo.py` | Traceable CLI + the `--fake-llm` offline stubs |
 | `test_grouping.py` | The grouping regression test. The repo's only test. Run it before recording. |
@@ -64,8 +71,8 @@ externally-managed, so `pip install` into it is blocked. `.venv` was created wit
 | `adapters/notifier_base.py`, `notifier_manager.py`, `slack_adapter.py`, `teams_adapter.py` | `NotifierAdapter` ABC, Slack, Teams, `NotifierManager` |
 | `env.example` | Credential/tuning template. **No leading dot** — copy it to `.env`. |
 | `sample_transcripts/` | 3 transcripts; one issue recurs across all three |
-| `.claude/hooks/claude_md_guard.py` | Keeps this file honest (see Maintaining this file) |
-| `.claude/settings.json` | Wires that script to the SessionStart and Stop hooks |
+| `AGENTS.md` | Tool-agnostic twin of this file: same state, no Claude Code specifics. **Update both together.** |
+| `demo_script.html` | Print-ready system explainer + timecoded narration for the 2-minute demo video |
 
 Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothing in
 `pipeline.py`, `demo.py` or `scheduler.py` names a platform — keep it that way.
@@ -186,7 +193,7 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   last attempt slept 0.0s. `embed_batch` — which previously had **no retry at all** — now
   retries on the same schedule; `llm_client.embed()` still returns 1024 dims afterwards.
 - **Placeholder credentials no longer flip adapters live.** Caught in the act: a `.env` copied
-  wholesale from `.env.example` left `SLACK_BOT_TOKEN=xoxb-...`, which `is_configured()` read as
+  wholesale from `env.example` left `SLACK_BOT_TOKEN=xoxb-...`, which `is_configured()` read as
   present, so Slack ran **live** and attempted 10 real `chat.postMessage` calls (all failed on
   auth, nothing delivered). `config._opt()` now treats `...`-suffixed, `<bracketed>`,
   `your-domain` and `example.com` values as absent and logs a warning. Re-verified: all four
@@ -346,14 +353,11 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   original and the tightened prompt. The thread still forms, but only later via #8 — which is why
   the escalation *count* moved between runs (1 vs 2) even when the final membership was identical.
   The group-merge fix is what makes the outcome survive this.
-- **`env.example` has no leading dot**, so it is not the `.env.example` that `llm_client`'s error
-  message and this file's own README reference. Anyone following that message looks for the wrong
-  filename.
-- **Free-text replies over Socket Mode are still unproven.** Only the button path was
-  exercised live. The listener used for that test ran under a booby-trap wrapper that makes
-  any model call raise, so free text could not be tested in the same process — and note the
-  scopes: `message.im` event subscription is required for free-text DMs to arrive at all, and
-  has never been confirmed on this app.
+- **Free-text replies over Socket Mode are still unproven, but their Slack permissions are now
+  configured.** Only the button path was exercised live. The listener used for that test ran
+  under a booby-trap wrapper that makes any model call raise, so free text could not be tested in
+  the same process. The reinstalled bot now has `im:history` and subscribes to `message.im`; run
+  `slack_listener.py` and send a DM such as `#3 done` to prove the round trip.
 - **Recurrence is only as good as the LLM's judgement.** The cosine stage no longer decides
   anything; a wrong adjudication is now a wrong answer with no numeric backstop. There is no
   regression test pinning the verdicts, so a model swap can change grouping silently.
@@ -494,7 +498,6 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
    workflow before trusting `CLICKUP_STATUS_MAP`.
 5. Decide whether `#8`-style stopgaps belong in the group — it is accepted while `#9` is
    rejected on similar evidence.
-6. `git init`. Still no version control, and this session rewrote the recurrence core.
 
 ### Demo-day notes (2026-09-12)
 
@@ -535,16 +538,18 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
 ## Maintaining this file
 
 **Update this file in the same session you change the code — before you finish your turn.**
-This is enforced, not merely requested:
 
-- **SessionStart hook** — if any `.py`, `requirements.txt` or `.env.example` is newer than this
-  file, the session opens with a warning that the claims below may be stale.
-- **Stop hook** — when you finish a turn, the same check runs. If the code is newer than this
-  file, it blocks once and tells you to update it. Updating this file makes it the newest file,
-  so the check then passes on its own.
+**This is NOT currently enforced.** Earlier versions of this file described a
+`.claude/hooks/claude_md_guard.py` wired to the SessionStart and Stop hooks, which would warn
+when any `.py` was newer than this file. **That script and `.claude/settings.json` do not exist
+in this repo** (verified 2026-09-12: `ls .claude` → no such directory, and no user-level
+settings reference it either), so nothing checks staleness for you. Treat the update as part of
+the change, not as something a hook will remind you about. Do not defer it and do not wait to
+be asked.
 
-Both run `.claude/hooks/claude_md_guard.py`, which fails open — if it errors it exits silently
-rather than breaking the session. Do not defer the update and do not wait to be asked.
+`AGENTS.md` carries the same project state without the Claude Code framing, for sessions in
+other tools. **If you update one, update the other**, or they will disagree and the next reader
+will not know which to trust.
 
 What to change:
 - Moved something from unverified to verified? Move the bullet from ❌ to ✅ **and say what

@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groundhog Loop Demo Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#fcfcfd; --surface:#f2f5f7; --ink:#14171c; --muted:#5c6673;
+  --rule:#e1e5ea; --rule-strong:#c8ced6;
+  --accent:#0f6e5c; --accent-soft:#e2efec;
+  --signal:#b4530a; --signal-soft:#fbeee1;
+  --live:#0f6e5c; --dry:#8a929c;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#101317; --surface:#191d23; --ink:#e8ebee; --muted:#9aa4b0;
+    --rule:#282e36; --rule-strong:#3a424c;
+    --accent:#4fb9a2; --accent-soft:#12312a;
+    --signal:#e08b3e; --signal-soft:#31220f;
+    --live:#4fb9a2; --dry:#7d868f;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101317; --surface:#191d23; --ink:#e8ebee; --muted:#9aa4b0;
+  --rule:#282e36; --rule-strong:#3a424c;
+  --accent:#4fb9a2; --accent-soft:#12312a;
+  --signal:#e08b3e; --signal-soft:#31220f;
+  --live:#4fb9a2; --dry:#7d868f;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:15px; line-height:1.55;
+  padding-inline:18px; padding-block:28px;
+}
+.doc{max-width:860px; margin:0 auto; display:flex; flex-direction:column; gap:44px}
+.sheet{display:flex; flex-direction:column; gap:22px}
+
+h1,h2,h3,.eyebrow,.chip,th,.tc,.badge{font-family:var(--display)}
+h1{font-size:2.45rem; line-height:1.05; letter-spacing:-.022em; font-weight:700; margin:0; text-wrap:balance}
+h2{font-size:1.12rem; letter-spacing:.02em; font-weight:600; margin:0; text-transform:uppercase}
+h3{font-size:1rem; font-weight:600; letter-spacing:-.005em; margin:0}
+p{margin:0}
+.eyebrow{font-family:var(--mono); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:500}
+.lede{font-size:1.16rem; line-height:1.45; color:var(--ink)}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono); font-size:.86em}
+code{font-family:var(--mono); font-size:.85em; background:var(--surface); padding:.1em .34em; border-radius:3px}
+em{font-style:italic}
+strong{font-weight:600}
+
+.masthead{display:flex; flex-direction:column; gap:14px; padding-bottom:20px; border-bottom:2px solid var(--ink)}
+.masthead .meta{display:flex; flex-wrap:wrap; gap:10px 22px; align-items:baseline; font-family:var(--mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+
+.sec{display:flex; flex-direction:column; gap:14px}
+.sec-head{display:flex; align-items:center; gap:14px}
+.sec-head h2{white-space:nowrap}
+.sec-head::after{content:""; flex:1; height:1px; background:var(--rule-strong)}
+
+.prose{display:flex; flex-direction:column; gap:11px; max-width:66ch}
+.two{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px 26px}
+.block{display:flex; flex-direction:column; gap:5px}
+.block h3{color:var(--accent)}
+
+.chip{display:inline-flex; align-items:center; gap:.35em; font-family:var(--mono); font-size:.63rem; font-weight:500;
+  letter-spacing:.1em; text-transform:uppercase; padding:.2em .5em; border-radius:3px; white-space:nowrap}
+.chip-or{background:var(--accent-soft); color:var(--accent)}
+.chip-zero{background:var(--signal-soft); color:var(--signal); font-weight:600}
+
+figure{margin:0; display:flex; flex-direction:column; gap:10px}
+.diagram{width:100%; overflow-x:auto}
+.diagram svg{display:block; width:100%; min-width:640px; height:auto}
+figcaption{font-size:.84rem; color:var(--muted); max-width:70ch}
+
+table{width:100%; border-collapse:collapse; font-size:.88rem}
+.tw{overflow-x:auto}
+th{text-align:left; font-size:.66rem; letter-spacing:.13em; text-transform:uppercase; color:var(--muted);
+  font-weight:600; padding:0 10px 7px 0; border-bottom:1px solid var(--rule-strong)}
+td{padding:9px 10px 9px 0; border-bottom:1px solid var(--rule); vertical-align:top}
+tr{break-inside:avoid}
+td.k,th.k{font-family:var(--mono); font-size:.8rem; white-space:nowrap; font-variant-numeric:tabular-nums}
+
+/* narration */
+.beat{display:grid; grid-template-columns:112px 1fr; gap:0 20px; padding:16px 0; border-bottom:1px solid var(--rule); break-inside:avoid}
+.beat:first-of-type{border-top:1px solid var(--rule-strong)}
+.beat .rail{display:flex; flex-direction:column; gap:7px}
+.tc{font-family:var(--mono); font-size:.95rem; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.rail .role{font-family:var(--mono); font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.rail .wc{font-family:var(--mono); font-size:.6rem; color:var(--muted)}
+.beat .body{display:flex; flex-direction:column; gap:9px}
+.screen{font-family:var(--mono); font-size:.76rem; line-height:1.5; color:var(--muted)}
+.screen b{color:var(--ink); font-weight:500}
+.cov{font-family:var(--mono); font-size:.66rem; letter-spacing:.06em; color:var(--accent);
+  display:flex; gap:.5em; align-items:baseline}
+.cov::before{content:"\2713"; font-weight:600}
+.say{font-size:1.05rem; line-height:1.5; padding-left:13px; border-left:3px solid var(--accent)}
+.beat.split .say{border-left-color:var(--signal)}
+
+.term{font-family:var(--mono); font-size:.76rem; line-height:1.7; background:var(--surface);
+  border:1px solid var(--rule); border-radius:5px; padding:12px 14px; overflow-x:auto; white-space:pre}
+.term .ok{color:var(--accent); font-weight:500}
+.term .rec{color:var(--signal); font-weight:500}
+
+.list{display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none}
+.list li{display:grid; grid-template-columns:18px 1fr; gap:10px; font-size:.93rem}
+.list li::before{content:""; width:11px; height:11px; margin-top:.35em; border:1.5px solid var(--rule-strong); border-radius:2px}
+.list.plain li::before{border:none; content:"—"; color:var(--muted); width:auto; margin-top:0}
+
+.note{border-left:3px solid var(--signal); background:var(--signal-soft); padding:13px 16px; border-radius:0 4px 4px 0;
+  display:flex; flex-direction:column; gap:7px; font-size:.91rem; break-inside:avoid}
+.note h3{font-size:.72rem; letter-spacing:.13em; text-transform:uppercase; color:var(--signal); font-family:var(--mono)}
+.flat{border:1px solid var(--rule); border-left:3px solid var(--rule-strong); background:transparent}
+.flat h3{color:var(--muted)}
+
+.rg{color:var(--signal); font-weight:600}
+
+@media print{
+  :root{
+    --paper:#fff; --surface:#f4f6f8; --ink:#14171c; --muted:#545d68;
+    --rule:#d8dde3; --rule-strong:#aeb6c0;
+    --accent:#0c5a4b; --accent-soft:#e6f1ee;
+    --signal:#94440a; --signal-soft:#faeee2;
+  }
+  @page{size:A4; margin:14mm 15mm}
+  body{padding:0; font-size:9.8pt; background:#fff}
+  .doc{max-width:none; gap:0}
+  .sheet{break-after:page; gap:16px}
+  .sheet:last-child{break-after:auto}
+  h1{font-size:25pt}
+  h2{font-size:9.5pt}
+  .lede{font-size:11.5pt}
+  .say{font-size:11pt}
+  .diagram svg{min-width:0}
+  .sec,.beat,figure,.note,table{break-inside:avoid}
+  a{color:inherit; text-decoration:none}
+}
+@media (max-width:520px){
+  .beat{grid-template-columns:1fr; gap:12px}
+  .beat .rail{flex-direction:row; align-items:baseline; gap:12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<!-- ══════════════════ SHEET 1 ══════════════════ -->
+<section class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Two-minute demo · system &amp; narration</p>
+    <h1>Groundhog Loop</h1>
+    <p class="lede">A retro follow-up agent that notices when the team has agreed to fix
+    the same thing for the third time — and says so, loudly, instead of filing a third
+    unrelated ticket.</p>
+    <div class="meta">
+      <span>Recorded run · KAN-44 … KAN-52</span>
+      <span>Chat · deepseek-v3.2 via OpenRouter</span>
+      <span>Embeddings · text-embedding-3-small</span>
+      <span>2026-09-12</span>
+    </div>
+  </header>
+
+  <div class="sec">
+    <div class="sec-head"><h2>The problem</h2></div>
+    <div class="two">
+      <div class="prose">
+        <p>Every retro produces action items. They get spoken, written down, and quietly
+        dropped. That part is ordinary.</p>
+        <p>The expensive part is the <em>second</em> and <em>third</em> time. The same root
+        cause comes back worded differently — "the ETL job doesn't alert", then "the staging
+        sync times out", then "the warehouse batch can't be checkpointed" — and because no
+        two of those strings match, it is re-triaged from scratch as a new problem instead of
+        escalated as a systemic one.</p>
+      </div>
+      <div class="prose">
+        <p>A human in the room sometimes catches it. In the sample transcript, Marcus does:
+        <em>"Again? Didn't we talk about this before?"</em> Nobody can answer him, because
+        the evidence is spread across three meetings and two ticket systems.</p>
+        <p>Groundhog Loop answers him. It files the ticket <strong>and</strong> carries the
+        thread: this is occurrence four, here are the three earlier tickets, here is the
+        sentence in each meeting that proves it.</p>
+      </div>
+    </div>
+  </div>
+
+  <figure>
+    <div class="sec-head"><h2>How it fits together</h2></div>
+    <div class="diagram">
+      <svg viewBox="0 0 920 460" role="img" aria-labelledby="dgt dgd">
+        <title id="dgt">Groundhog Loop pipeline</title>
+        <desc id="dgd">A transcript is extracted into action items, each embedded and
+        compared against every stored item by cosine recall, then adjudicated by an LLM.
+        Results are stored and fan out to a ticket layer (Jira live, ClickUp dry-run) and a
+        notifier layer (Slack live, Teams dry-run). Three of the five pipeline stages are
+        OpenRouter model calls; recall is local. Owner replies come back in through Slack —
+        button presses make zero model calls, free text is classified.</desc>
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+                  markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--rule-strong)"></path>
+          </marker>
+        </defs>
+        <style>
+          .bx{fill:var(--surface); stroke:var(--rule-strong); stroke-width:1; rx:5}
+          .bx-a{fill:var(--paper); stroke:var(--accent); stroke-width:1.4; rx:5}
+          .bx-s{fill:var(--signal-soft); stroke:var(--signal); stroke-width:1.2; rx:5}
+          .n{font-family:var(--mono); font-size:9px; font-weight:500; fill:var(--muted); letter-spacing:.1em}
+          .t{font-family:var(--display); font-size:13px; font-weight:600; fill:var(--ink)}
+          .t-s{font-family:var(--display); font-size:12.5px; font-weight:600; fill:var(--signal)}
+          .s{font-family:var(--mono); font-size:10px; fill:var(--muted)}
+          .s-i{font-family:var(--mono); font-size:10px; fill:var(--ink)}
+          .cl{font-family:var(--mono); font-size:8.5px; font-weight:500; letter-spacing:.07em; fill:var(--accent)}
+          .cz{font-family:var(--mono); font-size:8.5px; font-weight:600; letter-spacing:.07em; fill:var(--signal)}
+          .ln{stroke:var(--rule-strong); stroke-width:1.3; fill:none}
+          .lnd{stroke:var(--accent); stroke-width:1.3; fill:none; stroke-dasharray:4 3}
+          .lg{font-family:var(--mono); font-size:9.5px; fill:var(--muted)}
+        </style>
+
+        <!-- row 1: pipeline -->
+        <rect class="bx" x="22" y="48" width="155" height="74"></rect>
+        <text class="n" x="32" y="66">01</text>
+        <text class="t" x="32" y="86">Transcript</text>
+        <text class="s" x="32" y="101">retro · post-mortem</text>
+
+        <rect class="bx" x="202" y="48" width="155" height="74"></rect>
+        <text class="n" x="212" y="66">02</text>
+        <text class="t" x="212" y="86">Extract items</text>
+        <text class="s" x="212" y="101">owner · due · signal</text>
+        <rect x="212" y="106" width="72" height="13" rx="2.5" fill="var(--accent-soft)"></rect>
+        <text class="cl" x="217" y="115.5">OPENROUTER</text>
+
+        <rect class="bx" x="382" y="48" width="155" height="74"></rect>
+        <text class="n" x="392" y="66">03</text>
+        <text class="t" x="392" y="86">Embed</text>
+        <text class="s" x="392" y="101">1536-d vector</text>
+        <rect x="392" y="106" width="72" height="13" rx="2.5" fill="var(--accent-soft)"></rect>
+        <text class="cl" x="397" y="115.5">OPENROUTER</text>
+
+        <rect class="bx" x="562" y="48" width="155" height="74"></rect>
+        <text class="n" x="572" y="66">04</text>
+        <text class="t" x="572" y="86">Recall</text>
+        <text class="s" x="572" y="101">cos ≥ 0.15, all stored</text>
+        <rect x="572" y="106" width="44" height="13" rx="2.5" fill="var(--rule)"></rect>
+        <text class="n" x="577" y="115.5">LOCAL</text>
+
+        <rect class="bx" x="742" y="48" width="155" height="74"></rect>
+        <text class="n" x="752" y="66">05</text>
+        <text class="t" x="752" y="86">Adjudicate</text>
+        <text class="s" x="752" y="101">same problem?</text>
+        <rect x="752" y="106" width="72" height="13" rx="2.5" fill="var(--accent-soft)"></rect>
+        <text class="cl" x="757" y="115.5">OPENROUTER</text>
+
+        <path class="ln" d="M 177 85 H 200" marker-end="url(#ar)"></path>
+        <path class="ln" d="M 357 85 H 380" marker-end="url(#ar)"></path>
+        <path class="ln" d="M 537 85 H 560" marker-end="url(#ar)"></path>
+        <path class="ln" d="M 717 85 H 740" marker-end="url(#ar)"></path>
+
+        <!-- row 2: store + escalation -->
+        <path class="ln" d="M 819 122 V 146 H 288 V 168" marker-end="url(#ar)"></path>
+        <rect class="bx-a" x="180" y="170" width="216" height="58"></rect>
+        <text class="t" x="192" y="194">Store</text>
+        <text class="s" x="192" y="211">items.db · group id, count</text>
+
+        <path class="ln" d="M 396 199 H 450" marker-end="url(#ar)"></path>
+        <rect class="bx-s" x="452" y="170" width="446" height="58"></rect>
+        <text class="t-s" x="466" y="194">occurrence ≥ 3 → escalate</text>
+        <text class="s" x="466" y="211">"This keeps coming back" → posted to #eng-retro</text>
+
+        <!-- row 3: fan-out -->
+        <path class="ln" d="M 288 228 V 242 H 232 V 250" marker-end="url(#ar)"></path>
+        <path class="ln" d="M 288 242 H 688 V 250" marker-end="url(#ar)"></path>
+
+        <rect class="bx" x="22" y="252" width="420" height="86"></rect>
+        <text class="n" x="34" y="272">FAN-OUT · TICKETS</text>
+        <text class="t" x="34" y="295">Jira</text>
+        <text class="s-i" x="90" y="295">KAN-44 … KAN-52, cross-linked by comment</text>
+        <circle cx="38" cy="313" r="3.5" fill="var(--live)"></circle>
+        <text class="s" x="50" y="317">live · verified</text>
+        <circle cx="170" cy="313" r="3.5" fill="none" stroke="var(--dry)" stroke-width="1.2"></circle>
+        <text class="s" x="182" y="317">ClickUp · dry-run, never called live</text>
+
+        <rect class="bx" x="478" y="252" width="420" height="86"></rect>
+        <text class="n" x="490" y="272">FAN-OUT · NOTIFY</text>
+        <text class="t" x="490" y="295">Slack</text>
+        <text class="s-i" x="546" y="295">9 owner DMs + 2 channel escalations</text>
+        <circle cx="494" cy="313" r="3.5" fill="var(--live)"></circle>
+        <text class="s" x="506" y="317">live · Socket Mode</text>
+        <circle cx="646" cy="313" r="3.5" fill="none" stroke="var(--dry)" stroke-width="1.2"></circle>
+        <text class="s" x="658" y="317">Teams · dry-run, no buttons</text>
+
+        <!-- row 4: the owner responds -->
+        <path class="lnd" d="M 580 362 V 340" marker-end="url(#ar)"></path>
+        <path class="lnd" d="M 795 362 V 340" marker-end="url(#ar)"></path>
+
+        <text class="lg" x="22" y="380">The owner replies in Slack, and the two</text>
+        <text class="lg" x="22" y="396">reply paths are deliberately different:</text>
+        <text class="lg" x="22" y="424">a decision is a fact to record, not a</text>
+        <text class="lg" x="22" y="440">question to ask a model.</text>
+
+        <rect class="bx" x="478" y="364" width="205" height="74"></rect>
+        <text class="t" x="490" y="386">Button press</text>
+        <text class="s" x="490" y="402">status → DB + Jira</text>
+        <rect x="490" y="408" width="88" height="14" rx="2.5" fill="var(--signal-soft)"></rect>
+        <text class="cz" x="495" y="418">0 LLM CALLS</text>
+
+        <rect class="bx" x="693" y="364" width="205" height="74"></rect>
+        <text class="t" x="705" y="386">Free-text reply</text>
+        <text class="s" x="705" y="402">classified → status</text>
+        <rect x="705" y="408" width="72" height="14" rx="2.5" fill="var(--accent-soft)"></rect>
+        <text class="cl" x="710" y="418">OPENROUTER</text>
+      </svg>
+    </div>
+    <figcaption>Three of the five pipeline stages are model calls and all three go through
+    one OpenRouter key. Recall is local arithmetic. The button path sits outside the model
+    boundary entirely — that is a product requirement, and it is the thing the demo
+    proves on camera.</figcaption>
+  </figure>
+
+</section>
+
+<!-- ══════════════════ SHEET 2 ══════════════════ -->
+<section class="sheet">
+
+  <div class="sec">
+    <div class="sec-head"><h2>How the recurrence check works</h2></div>
+    <p class="prose">Matching the same problem across differently-worded action items is the
+    whole product, and it is the part that took the most measurement to get right. Six
+    decisions carry it:</p>
+    <div class="two">
+      <div class="block">
+        <h3>Two stages, two different jobs</h3>
+        <p>Embeddings do <strong>recall</strong> at a deliberately loose cutoff; the model
+        does <strong>precision</strong>. Neither stage is asked to do the other's job.</p>
+      </div>
+      <div class="block">
+        <h3>No single threshold can work — measured</h3>
+        <p>On real vectors the weakest genuine cross-meeting pair scores
+        <span class="mono">0.2425</span> and the strongest unrelated pair scores
+        <span class="mono">0.4121</span>. The bands overlap, so no cutoff separates them.
+        Recall sits at <span class="mono">0.15</span> and lets the model judge.</p>
+      </div>
+      <div class="block">
+        <h3>The evidence is in the dialogue</h3>
+        <p>The sentence that proves a repeat — <em>"this is the third time … August retro,
+        sprint 42, now this"</em> — sits several lines from the action item and is otherwise
+        thrown away. Extraction captures it whole, as a separate field. Without it, the
+        grouping collapses.</p>
+      </div>
+      <div class="block">
+        <h3>A recurrence came back <em>later</em></h3>
+        <p>Same-meeting candidates are excluded. Two action items from one retro about one
+        system are two tasks, not a recurrence — and same-meeting pairs are the strongest
+        cosine matches in the sample, so they would dominate the shortlist.</p>
+      </div>
+      <div class="block">
+        <h3>A link merges threads</h3>
+        <p>A new occurrence is often the first evidence that two separately tracked threads
+        are one problem, so every group among the confirmed matches is merged. Picking only
+        the best-scoring one orphans items and under-counts the thread.</p>
+      </div>
+      <div class="block">
+        <h3>Judgement failure fails closed</h3>
+        <p>If adjudication errors out, the item is treated as new. Falling back to the cosine
+        score would mean trusting a threshold already known not to separate.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head"><h2>What one run actually does</h2></div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Model / system</th><th class="k">Measured</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Extraction — 3 transcripts</td>
+            <td><span class="mono">deepseek/deepseek-v3.2</span> via OpenRouter</td>
+            <td class="k">3 calls · 9 items</td>
+          </tr>
+          <tr>
+            <td>Embedding — one per item</td>
+            <td><span class="mono">openai/text-embedding-3-small</span></td>
+            <td class="k">1536 dims</td>
+          </tr>
+          <tr>
+            <td>Recall — cosine vs everything stored</td>
+            <td>local, numpy — no model call</td>
+            <td class="k">≥ 0.15, top 8</td>
+          </tr>
+          <tr>
+            <td>Adjudication — per item that shortlists</td>
+            <td><span class="mono">deepseek/deepseek-v3.2</span> via OpenRouter</td>
+            <td class="k">6 calls</td>
+          </tr>
+          <tr>
+            <td>Tickets — Jira live, ClickUp dry-run</td>
+            <td>Jira Cloud REST v3 (ADF)</td>
+            <td class="k">9 issues</td>
+          </tr>
+          <tr>
+            <td>Notifications — Slack live, Teams dry-run</td>
+            <td>Slack Bolt, Socket Mode</td>
+            <td class="k">11 sends, 11 ok</td>
+          </tr>
+          <tr>
+            <td><strong>Whole run</strong></td>
+            <td>one API key, one config value to swap models</td>
+            <td class="k"><strong>≈ $0.01 · 36-48s</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:.84rem; max-width:70ch">The same run on
+    <span class="mono">anthropic/claude-sonnet-5</span> produces the same grouping at roughly
+    ten times the cost and twice the wall time — the swap is one line in
+    <span class="mono">.env</span> and no code change. Both are graded by the same regression
+    test, which is how the comparison is a measurement rather than a preference.</p>
+  </div>
+
+  <div class="note flat">
+    <h3>Say this if you are asked what is real</h3>
+    <p><strong>Live and verified:</strong> the OpenRouter model calls, the Jira board
+    (KAN-44 … KAN-52 on a real Atlassian instance), and Slack — channel posts, owner DMs,
+    and the Socket Mode button loop. <strong>Dry-run:</strong> ClickUp and Teams, for want of
+    credentials; each prints the exact HTTP request it would have sent and returns a
+    response in the real API's shape, so the parsing code runs identically. Slack DMs all
+    resolve to one member ID on purpose, so the button path can be exercised.</p>
+  </div>
+
+</section>
+
+<!-- ══════════════════ SHEET 3 ══════════════════ -->
+<section class="sheet">
+
+  <div class="sec">
+    <div class="sec-head"><h2>The two-minute narration</h2></div>
+    <p class="prose">Five beats, <strong>116 seconds of speech</strong> at a natural
+    150 words per minute, leaving four seconds of slack inside the limit. Word counts are
+    per beat so you can see what to cut if you drift. Read the <span class="mono">SAY</span>
+    column; the grey lines above it are what should be on screen while you say it.</p>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <p class="tc">0:00 – 0:15</p>
+      <p class="role">Setup</p>
+      <p class="wc">36 words</p>
+    </div>
+    <div class="body">
+      <p class="screen"><b>On screen:</b> the editor, <b>sample_transcripts/01_incident_retro.txt</b>,
+      scrolled to Dana's paragraph. No terminal yet. Let the viewer read two or three lines
+      of real dialogue before anything runs.</p>
+      <p class="cov">Checklist — shows the surface and the existing context before the prompt</p>
+      <p class="say">This is a real incident retro — four people, three action items. Dana
+      raises the nightly ETL job failing silently again. Marcus asks: <em>"Again? Didn't we
+      talk about this before?"</em> Nobody in the room can answer him.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <p class="tc">0:15 – 0:52</p>
+      <p class="role">Interaction</p>
+      <p class="wc">89 words</p>
+    </div>
+    <div class="body">
+      <p class="screen"><b>On screen:</b> terminal —
+      <b>.venv/bin/python demo.py --sample all --reset-db</b>. Let the trace scroll. Slow
+      down on the third transcript, and park on the magenta <b>RECURRING</b> line and the
+      <b>[Recurring x3]</b> ticket title. Do not read the item strings aloud — the wording
+      varies run to run.</p>
+      <p class="cov">Checklist — one complete interaction, start to finish</p>
+      <p class="say">One command feeds three meetings through the agent — this retro, a sprint
+      retro two days later, and a post-mortem. Every action item gets extracted with an owner
+      and a due date, embedded, and compared against everything filed before. Two stages: the
+      embeddings pull a loose shortlist, then the model decides whether it is genuinely the
+      same problem. Watch this item. The post-mortem says <em>"this is the third time —
+      August retro, sprint forty-two, now this."</em> The agent links it back across all
+      three meetings and flags it: recurring, occurrence four.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <p class="tc">0:52 – 1:20</p>
+      <p class="role">Visible result</p>
+      <p class="wc">63 words</p>
+    </div>
+    <div class="body">
+      <p class="screen"><b>On screen:</b> cut to the browser. The Jira KAN board showing
+      <b>KAN-44 … KAN-52</b>; open <b>KAN-50</b> so its <b>[Recurring x3]</b> title and
+      cross-link comments are readable. Then cut to Slack <b>#eng-retro</b> and scroll the two
+      escalation posts.</p>
+      <p class="cov">Checklist — a visible result: real records, not mocks</p>
+      <p class="say">These are real tickets on a live Jira board — KAN-44 through 52, one per
+      action item. KAN-50 carries the recurring flag in its title, and comments cross-linking
+      every earlier ticket in the thread. In Slack, the team channel got the escalation: this
+      keeps coming back, occurrence four. Nine owner DMs, two channel escalations, all
+      delivered. One group, four occurrences. Nothing here is mocked.</p>
+    </div>
+  </div>
+
+  <div class="beat split">
+    <div class="rail">
+      <p class="tc">1:20 – 1:48</p>
+      <p class="role">Decision vs execution</p>
+      <p class="wc">74 words</p>
+    </div>
+    <div class="body">
+      <p class="screen"><b>On screen:</b> the Slack DM with its three buttons. Click
+      <b>Done</b> — hold on the click for a beat. Cut to the <b>slack_listener.py</b> terminal
+      as the two log lines land. Cut to the Jira issue and <b>refresh</b> so the status
+      visibly flips <b>To Do → Done</b>. Have all three windows arranged before you record
+      this beat; do not alt-tab hunting for them.</p>
+      <p class="cov">Checklist — the approval: decision distinguished from execution, then the
+      resulting behaviour shown</p>
+      <p class="say">The owner decides; the agent executes — and those are two separate
+      things. I click Done in Slack. That is the decision. The listener receives the click and
+      writes straight to the database and to Jira. That is the execution. Watch the ticket:
+      To Do… now Done, same second. And read the log line — zero LLM calls on this path. A
+      button press is a fact to record, not a question to ask a model.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <p class="tc">1:48 – 2:00</p>
+      <p class="role">Close</p>
+      <p class="wc">28 words</p>
+    </div>
+    <div class="body">
+      <p class="screen"><b>On screen:</b> the system diagram from sheet 1, or the
+      <span class="mono">.env</span> file with the two model lines visible. Land on the
+      OpenRouter name — say it, and have it on screen.</p>
+      <p class="cov">Checklist — names the sponsor technology explicitly; states the value line</p>
+      <p class="say">Every model call here — extraction, embeddings, and the recurrence
+      judgement — runs through OpenRouter on a single key, currently DeepSeek V3.2. Retros
+      should stop repeating themselves. Now they do.</p>
+    </div>
+  </div>
+
+  <div class="note flat">
+    <h3>If you run long</h3>
+    <p>Cut in this order: <span class="mono">"and those are two separate things"</span> from
+    the decision beat (−6 words), then <span class="mono">"Nine owner DMs, two channel
+    escalations, all delivered"</span> from the result beat (−9). Do not cut the OpenRouter
+    sentence or the <span class="mono">zero LLM calls</span> line — those are the two the
+    checklist scores.</p>
+  </div>
+
+</section>
+
+<!-- ══════════════════ SHEET 4 ══════════════════ -->
+<section class="sheet">
+
+  <div class="sec">
+    <div class="sec-head"><h2>What is on the board</h2></div>
+    <p class="prose">The recorded run. Four items are one thread — amber below, group
+    <span class="rg mono">rg-75a92b527f</span>, occurrence count <span class="rg">4</span>.
+    Point at these; don't read them out.</p>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th class="k">Ticket</th><th>Owner</th><th>Action item</th><th>Meeting</th><th>Thread</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="k">KAN-44</td><td>Sam</td><td>Regression test asserting connection pool size at startup</td><td>01 Incident Retro</td><td class="k muted">—</td></tr>
+          <tr><td class="k">KAN-45</td><td>Priya</td><td>Point the checkout runbook at the current Grafana dashboard</td><td>01 Incident Retro</td><td class="k muted">—</td></tr>
+          <tr><td class="k rg">KAN-46</td><td>Dana</td><td>Make the nightly ETL failure actually alert someone</td><td>01 Incident Retro</td><td class="k rg">occurrence 1</td></tr>
+          <tr><td class="k rg">KAN-47</td><td>Dana</td><td>Investigate the staging sync timing out; widen the window</td><td>02 Sprint Retro</td><td class="k rg">occurrence 2</td></tr>
+          <tr><td class="k">KAN-48</td><td>Jules</td><td>Scope a test-data seeding tool with known balances</td><td>02 Sprint Retro</td><td class="k muted">rejected</td></tr>
+          <tr><td class="k">KAN-49</td><td>Priya</td><td>Refresh the on-call handover doc and escalation contacts</td><td>02 Sprint Retro</td><td class="k muted">—</td></tr>
+          <tr><td class="k rg">KAN-50</td><td>Dana</td><td>Design doc for checkpointing the warehouse batch pipeline</td><td>03 Postmortem</td><td class="k rg">occurrence 3 · escalates</td></tr>
+          <tr><td class="k rg">KAN-51</td><td>Dana</td><td>Completion marker on the warehouse load, as a stopgap for finance</td><td>03 Postmortem</td><td class="k rg">occurrence 4 · escalates</td></tr>
+          <tr><td class="k">KAN-52</td><td>Priya</td><td>Add the warehouse batch job to the on-call dashboard</td><td>03 Postmortem</td><td class="k muted">rejected</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:.84rem; max-width:70ch">KAN-48 and KAN-52 are the
+    interesting rejections: both are about the same systems, and both were correctly judged
+    to be different problems. Five of five unrelated items rejected, no false positives.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head"><h2>The two log moments</h2></div>
+    <p class="screen"><b>The recurrence link</b> — the moment worth pausing on during the
+    interaction beat.</p>
+    <div class="term"><span class="rec">-> RECURRING occurrence #4, group rg-75a92b527f</span>
+   linked: #3 #4 #7   evidence: "It keeps coming back because we keep fixing
+   the symptom. Last time it was the alerting, before that it was the
+   timeout window."
+<span class="rec">RECURRENCE ESCALATION</span> — occurrence #4 >= threshold of 3 -> #eng-retro</div>
+    <p class="screen"><b>The button press</b> — recorded verbatim from the verification run,
+    with every model entry point booby-trapped to raise if it were called.</p>
+    <div class="term">11:59:51 BUTTON RECEIVED: item #1 -> done | jira=KAN-11 | status before=pending
+11:59:53 [DRY-RUN] clickup PUT .../task/86a0001k  {"status": "complete"}
+11:59:53 BUTTON APPLIED : item #1 status after=done | <span class="ok">llm calls so far=0</span>
+11:59:53 slack_listener: item 1 -> done via button</div>
+    <p class="muted" style="font-size:.84rem; max-width:70ch">Jira re-read from the API
+    afterwards: the issue moved To Do → Done, <span class="mono">updated</span> stamped the
+    same second as the log line. That is the claim the fourth beat makes, already proven off
+    camera.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head"><h2>Before you hit record</h2></div>
+    <div class="two">
+      <ul class="list">
+        <li><strong>Preflight.</strong> <span class="mono">.venv/bin/python
+        test_grouping.py</span> — exit 0 means safe to record. ~40s, no Jira issue, no Slack
+        message, database untouched. A pass an hour ago is not a pass now.</li>
+        <li><strong>Clear the board.</strong> Delete KAN-20 … KAN-43 — earlier rehearsals,
+        including one over-grouped run. They make the board confusing on camera.</li>
+        <li><strong>Start the listener.</strong> <span class="mono">.venv/bin/python
+        slack_listener.py</span> and wait for <span class="mono">⚡️ Bolt app is
+        running!</span> The button beat is dead without it.</li>
+        <li><strong>Arrange four windows</strong> before recording: editor on the transcript,
+        terminal, Jira board, Slack. Never hunt for a window on camera.</li>
+      </ul>
+      <ul class="list">
+        <li><strong>Check audio for real.</strong> Record five seconds, play it back, listen
+        for room noise and level. Do this before the take, not after.</li>
+        <li><strong>Count the escalations.</strong> Exactly <strong>2</strong> is correct.
+        Three means the on-call-dashboard item joined the thread — see below.</li>
+        <li><strong>Postflight.</strong> <span class="mono">test_grouping.py --check-db
+        items.db</span> grades what actually landed. No model calls, instant. Run it before
+        you narrate anything.</li>
+        <li><strong>Check the runtime</strong> against the event's stated limit before
+        uploading.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <h3>If it drifts on camera</h3>
+    <p><strong>Three escalations instead of two.</strong> The on-call-dashboard item
+    (KAN-52) has joined the thread. It is loud, not quiet: a third
+    <span class="mono">RECURRENCE ESCALATION</span> fires, titles read
+    <span class="mono">[Recurring x5]</span>, and every member's count rewrites 4 → 5. The
+    grouping is defensible either way — but the narration above says "occurrence four", so
+    re-run rather than talk over it.</p>
+    <p><strong>Fewer than two escalations.</strong> Read the extracted recurrence evidence
+    first, not the adjudicator. If the sentence naming the earlier meetings was truncated,
+    the whole group collapses and nothing logs an error.</p>
+    <p><strong>An adapter fails mid-run.</strong> Keep going — per-adapter failure isolation
+    is verified: the failing adapter errors alone and its peers still deliver. It is a decent
+    thing to point out if it happens.</p>
+    <p><strong>The item wording looks different from this document.</strong> Expected.
+    Extraction is not bit-reproducible even at temperature zero; the grouping is stable, the
+    exact strings are not. This is why the script never reads an item aloud.</p>
+  </div>
+
+</section>
+
+</div>
+</body>
+</html>

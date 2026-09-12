@@ -43,7 +43,7 @@ def get_client() -> OpenAI:
     if _client is None:
         if not config.OPENROUTER_API_KEY:
             raise LLMError(
-                "OPENROUTER_API_KEY is not set. Copy .env.example to .env and add "
+                "OPENROUTER_API_KEY is not set. Copy env.example to .env and add "
                 "your key, or run demo.py with --fake-llm to skip live model calls."
             )
         _client = OpenAI(

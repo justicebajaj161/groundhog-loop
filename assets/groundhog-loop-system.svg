@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 780" role="img" aria-labelledby="title desc">
+  <title id="title">Groundhog Loop system design</title>
+  <desc id="desc">A transcript becomes action items, embeddings, recurrence recall and LLM adjudication. Results are stored, tickets are filed in Jira, owners are notified in Slack, repeated issues escalate to eng-retro, and Slack button presses update the database and Jira without an LLM call.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#44505e"/></marker>
+    <marker id="teal-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#47c5ae"/></marker>
+    <style>
+      .bg{fill:#101317}.card{fill:#191d23;stroke:#3a424c;stroke-width:2}.store{fill:#101317;stroke:#47c5ae;stroke-width:2.5}.alert{fill:#31220f;stroke:#e08b3e;stroke-width:2.5}.line{fill:none;stroke:#44505e;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#47c5ae;stroke-width:2.5;stroke-dasharray:8 8;marker-end:url(#teal-arrow)}.step{font:600 17px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:3px;fill:#9aa4b0}.heading{font:700 27px Arial,sans-serif;fill:#e8ebee}.sub{font:500 19px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#9aa4b0}.body{font:600 20px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#d9dde2}.tag{font:700 16px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:2px;fill:#47c5ae}.tag-dark{font:700 16px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:2px;fill:#a7b0ba}.tag-warn{font:700 16px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:2px;fill:#e08b3e}.amber{font:700 26px Arial,sans-serif;fill:#e08b3e}.note{font:500 19px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#9aa4b0}.white{fill:#e8ebee}.teal{fill:#47c5ae}.dry{fill:none;stroke:#7d868f;stroke-width:2.5}
+    </style>
+  </defs>
+  <rect class="bg" width="1600" height="780" rx="16"/>
+
+  <g transform="translate(64 70)">
+    <rect class="card" width="270" height="140" rx="12"/>
+    <text class="step" x="24" y="38">01</text><text class="heading" x="24" y="80">Transcript</text><text class="sub" x="24" y="112">retro · post-mortem</text>
+  </g>
+  <g transform="translate(386 70)">
+    <rect class="card" width="270" height="140" rx="12"/>
+    <text class="step" x="24" y="38">02</text><text class="heading" x="24" y="80">Extract items</text><text class="sub" x="24" y="112">owner · due · signal</text>
+    <rect x="24" y="120" width="145" height="28" rx="4" fill="#12312a"/><text class="tag" x="35" y="141">OPENROUTER</text>
+  </g>
+  <g transform="translate(708 70)">
+    <rect class="card" width="270" height="140" rx="12"/>
+    <text class="step" x="24" y="38">03</text><text class="heading" x="24" y="80">Embed</text><text class="sub" x="24" y="112">1536-d vector</text>
+    <rect x="24" y="120" width="145" height="28" rx="4" fill="#12312a"/><text class="tag" x="35" y="141">OPENROUTER</text>
+  </g>
+  <g transform="translate(1030 70)">
+    <rect class="card" width="270" height="140" rx="12"/>
+    <text class="step" x="24" y="38">04</text><text class="heading" x="24" y="80">Recall</text><text class="sub" x="24" y="112">cos ≥ 0.15, all stored</text>
+    <rect x="24" y="120" width="78" height="28" rx="4" fill="#282e36"/><text class="tag-dark" x="36" y="141">LOCAL</text>
+  </g>
+  <g transform="translate(1352 70)">
+    <rect class="card" width="184" height="140" rx="12"/>
+    <text class="step" x="24" y="38">05</text><text class="heading" x="24" y="80">Adjudicate</text><text class="sub" x="24" y="112">same problem?</text>
+    <rect x="24" y="120" width="145" height="28" rx="4" fill="#12312a"/><text class="tag" x="35" y="141">OPENROUTER</text>
+  </g>
+  <path class="line" d="M334 140h42M656 140h42M978 140h42M1300 140h42"/>
+
+  <path class="line" d="M1444 210v76H470v36"/>
+  <g transform="translate(304 322)">
+    <rect class="store" width="360" height="108" rx="12"/><text class="heading" x="24" y="52">Store</text><text class="sub" x="24" y="82">items.db · group id, count</text>
+  </g>
+  <path class="line" d="M664 376h70"/>
+  <g transform="translate(734 322)">
+    <rect class="alert" width="802" height="108" rx="12"/><text class="amber" x="24" y="52">occurrence ≥ 3 → escalate</text><text class="sub" x="24" y="82">“This keeps coming back” → posted to #eng-retro</text>
+  </g>
+
+  <path class="line" d="M484 430v62H262v32M484 492h786v32"/>
+  <g transform="translate(64 556)">
+    <rect class="card" width="650" height="148" rx="12"/><text class="step" x="24" y="37">FAN-OUT · TICKETS</text><text class="heading" x="24" y="84">Jira</text><text class="body" x="115" y="84">one ticket per occurrence</text>
+    <circle class="teal" cx="33" cy="117" r="7"/><text class="sub" x="52" y="124">live · verified</text><circle class="dry" cx="251" cy="117" r="7"/><text class="sub" x="270" y="124">ClickUp · dry-run</text>
+  </g>
+  <g transform="translate(866 556)">
+    <rect class="card" width="670" height="148" rx="12"/><text class="step" x="24" y="37">FAN-OUT · NOTIFY</text><text class="heading" x="24" y="84">Slack</text><text class="body" x="115" y="84">owner DMs + channel escalation</text>
+    <circle class="teal" cx="33" cy="117" r="7"/><text class="sub" x="52" y="124">live · Socket Mode</text><circle class="dry" cx="296" cy="117" r="7"/><text class="sub" x="315" y="124">Teams · dry-run</text>
+  </g>
+
+  <g transform="translate(920 456)">
+    <rect class="card" width="265" height="86" rx="10"/><text class="heading" x="20" y="37">Button press</text><text class="sub" x="20" y="62">status → DB + Jira</text><rect x="20" y="67" width="140" height="28" rx="4" fill="#31220f"/><text class="tag-warn" x="31" y="88">0 LLM CALLS</text>
+  </g>
+  <g transform="translate(1230 456)">
+    <rect class="card" width="265" height="86" rx="10"/><text class="heading" x="20" y="37">Free-text reply</text><text class="sub" x="20" y="62">classified → status</text><rect x="20" y="67" width="145" height="28" rx="4" fill="#12312a"/><text class="tag" x="31" y="88">OPENROUTER</text>
+  </g>
+  <path class="dash" d="M1052 556v-14M1362 556v-14"/>
+</svg>

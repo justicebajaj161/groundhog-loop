@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from datetime import date, datetime, timedelta, timezone
 
 import config
@@ -114,6 +115,38 @@ def run_n_cycle(
     return summary
 
 
+def run_demo_followup_cycle(
+    *,
+    notifier_manager: NotifierManager | None = None,
+    db_path: str | None = None,
+) -> dict:
+    """DM blocked and in-progress items immediately for a recording.
+
+    This deliberately bypasses the real scheduler's due-date and 24-hour
+    guards so the follow-up loop is visible in seconds. It never escalates to
+    the team channel and does not update ``last_nudged_at``, leaving the normal
+    production schedule untouched.
+    """
+    config.reload()
+    storage.init_db(db_path)
+    notifiers = notifier_manager if notifier_manager is not None else NotifierManager()
+    eligible = [
+        item for item in storage.open_items(db_path)
+        if item.get("status") in {"in_progress", "blocked"}
+    ]
+
+    for item in eligible:
+        notifiers.nudge(item)
+
+    summary = {
+        "followed_up": len(eligible),
+        "item_ids": [item["id"] for item in eligible],
+        "statuses": [item["status"] for item in eligible],
+    }
+    log.info("demo follow-up cycle complete: %s", summary)
+    return summary
+
+
 # --------------------------------------------------------------------------
 # runtime configuration, driven from Slack/Teams
 # --------------------------------------------------------------------------
@@ -176,9 +209,20 @@ def handle_config_command(text: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run nudge/escalation cycles.")
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--once", action="store_true", help="run a single cycle (default)")
+    mode.add_argument("--once", action="store_true", help="run a single due-date cycle (default)")
     mode.add_argument("--loop", action="store_true", help="run every SCHEDULER_INTERVAL_MINUTES")
+    mode.add_argument(
+        "--demo-followup",
+        action="store_true",
+        help="DM blocked/in-progress items repeatedly for a recording; ignores due dates",
+    )
     parser.add_argument("--force", action="store_true", help="ignore the re-nudge guard")
+    parser.add_argument(
+        "--interval-seconds",
+        type=float,
+        default=10,
+        help="seconds between --demo-followup cycles (default: 10)",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -186,6 +230,22 @@ def main() -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+    if args.demo_followup:
+        if args.interval_seconds <= 0:
+            parser.error("--interval-seconds must be greater than zero")
+        log.info(
+            "demo follow-up mode: blocked/in-progress items every %ss; Ctrl-C to stop",
+            args.interval_seconds,
+        )
+        try:
+            while True:
+                summary = run_demo_followup_cycle()
+                print("  " + ", ".join(f"{key}: {value}" for key, value in summary.items()))
+                time.sleep(args.interval_seconds)
+        except KeyboardInterrupt:
+            log.info("demo follow-up stopped")
+        return 0
 
     if args.loop:
         try:

@@ -68,7 +68,7 @@ def _str(key: str, default: str = "") -> str:
     return default if value is None else str(value)
 
 
-# Literal placeholders copied out of .env.example. These must count as ABSENT,
+# Literal placeholders copied out of env.example. These must count as ABSENT,
 # not present: DRY_RUN=unset decides per adapter via is_configured(), so a
 # half-filled .env would otherwise flip adapters LIVE and fire real API calls
 # with junk credentials. Observed 2026-09-12 -- SLACK_BOT_TOKEN=xoxb-... made
@@ -81,7 +81,7 @@ def _is_placeholder(text: str) -> bool:
     lowered = text.strip().lower()
     if not lowered:
         return True
-    # "xoxb-...", "pk_...", "xapp-..." -- the .env.example house style
+    # "xoxb-...", "pk_...", "xapp-..." -- the env.example house style
     if lowered.endswith("..."):
         return True
     # "<your-token-here>"
@@ -100,7 +100,7 @@ def _opt(key: str) -> str | None:
         return None
     if _is_placeholder(value):
         log.warning(
-            "%s looks like a placeholder from .env.example (%r) -- treating it as "
+            "%s looks like a placeholder from env.example (%r) -- treating it as "
             "unset so the adapter dry-runs instead of calling out with a junk credential",
             key,
             value[:24],
