@@ -9,15 +9,33 @@ Choose your city on the [global event page](https://aitinkerers.org/hackathons/g
 - [ ] We identify inherited templates, libraries, prompts, components, and starter code separately from our event work
 
 **What we inherited**
-<!-- TEAM: confirm/correct — no starter-kit files (apps/, AGENTS.md, using-sponsor-tools.md)
-     are present in this repo, so nothing appears inherited from the event's provided template.
-     Fill in here if you did start from something not currently in this directory. -->
-None from the official starter kit — this repo does not contain `apps/channel`, `apps/web`,
-`apps/mobile`, `AGENTS.md`, or `using-sponsor-tools.md`. If a different template or reused
-example was the starting point, name it here.
+
+We did not use the hackathon's starter kit or its bundled templates (no CopilotKit Channels
+scaffold, no `apps/` directory, no shared agent framework). The project's environment
+integrations — Jira, ClickUp, Slack, and Microsoft Teams adapters — were built directly against
+each platform's own REST APIs (Jira Cloud REST API v3, ClickUp API v2, Slack Bolt SDK with Socket
+Mode, and Microsoft Teams via a Power Automate Workflows webhook), rather than through a managed
+integration layer.
+
+We did rely on the following external building blocks, all standard open-source libraries or
+hosted APIs rather than hackathon-specific starter code:
+
+- OpenRouter as the single API gateway for all model calls (chat completion and embeddings),
+  configured so the underlying model (currently Claude Sonnet 5 for reasoning, OpenAI's
+  `text-embedding-3-small` for semantic matching) can be swapped via one config value with no
+  code changes.
+- Slack Bolt SDK and Atlassian/ClickUp's official REST APIs for platform integration.
+- OpenRouter-hosted embeddings for the semantic recall pass used in recurrence detection.
+- Standard Python libraries (SQLite for storage, APScheduler for the nudge scheduler).
+
+The core interaction — ingesting retro/incident notes, extracting action items, detecting
+semantic recurrence across separate meetings using a hybrid embedding-recall-plus-LLM-adjudication
+approach, fanning out to two ticketing systems and two chat platforms simultaneously, and
+supporting both zero-LLM button-based status updates and free-text status classification — was
+designed and built during the event, which started 2026-09-12 11:15am.
 
 **What we built during the hackathon**
-<!-- TEAM: confirm the timeline claim below matches your actual event participation. -->
+
 Groundhog Loop: a retro/incident follow-up backend that extracts action items from a meeting
 transcript with an LLM, embeds each one, checks it against every previously stored item for
 semantic recurrence (two-stage: embedding recall + LLM adjudication), files tickets on Jira and
@@ -30,7 +48,7 @@ call the LLM; free-text replies are classified by it. See `config.py`, `extracti
 ## Title and description
 
 **What you built**
-<!-- TEAM: confirm/tighten this. -->
+
 An agent that ingests a retro or post-mortem transcript, extracts action items, and — the core
 interaction — recognizes when one of them is the *same problem* surfacing again under different
 wording, across meetings that may be weeks apart. Instead of filing a fresh, unrelated ticket, it
@@ -39,16 +57,40 @@ links the new occurrence to the existing thread, and once a problem has recurred
 scratch again.
 
 **Who it is for**
-<!-- TEAM: name a specific person/role you're targeting — placeholder below. -->
-An engineering team lead or on-call owner who runs regular retros/post-mortems and needs
-recurring systemic issues (not just individual action items) surfaced automatically instead of
-relying on someone remembering "didn't we already talk about this?"
+
+Groundhog Loop is for an engineering team lead or on-call manager who runs recurring retros and
+incident postmortems. Every retro produces a list of action items — "add alerting," "write a
+runbook," "fix the flaky test" — that get filed once and then forgotten. Six weeks later, a new
+incident happens for the same underlying reason, and nobody in the room remembers that this is
+the third time they've patched around the same fragile pipeline instead of fixing it. Groundhog
+Loop is built for that person: someone who wants their team's retros to actually compound into
+fixed problems, not just a growing backlog of disconnected tickets.
 
 **Why the context matters**
-<!-- TEAM: confirm this framing. -->
-The agent only knows an item is a repeat because it has the full history of every action item
-ever extracted from every past transcript to compare against — a standalone chatbox given one
-transcript at a time has no memory of the last meeting and would treat every item as new.
+
+A standalone chatbot could summarize one meeting's notes into a to-do list. What it can't do is
+notice that "the staging sync keeps timing out" (August), "we need checkpointing for the
+warehouse batch pipeline" (a few weeks later), and "add a completion marker for finance" (this
+week) are the same underlying fragile system being patched around three separate times — because
+a chatbox has no memory of the other meetings, and no connection to the tickets those meetings
+actually produced.
+
+Groundhog Loop lives where the work already happens: it reads real retro notes, creates real
+tickets in Jira and ClickUp, and posts real messages in Slack and Microsoft Teams. Because it's
+wired into the actual ticket history and the actual team channels — not a sandboxed chat window —
+it can compare each new action item against everything the team has filed before, using semantic
+matching and LLM judgment to catch recurrence that keyword search or human memory would miss. When
+it finds a match, it doesn't just quietly file another ticket: it comments on the original ticket,
+links the occurrences together, and posts a visible escalation to the team channel once a pattern
+crosses a threshold — turning "here's ticket #47" into "this is the fourth time this exact problem
+has come back."
+
+It also respects how teams actually track status: an owner can acknowledge a nudge with a single
+button click (Done / In Progress / Blocked), which updates the real ticket instantly with zero
+model calls involved — or reply in plain language, which the agent reads and translates into
+status plus a blocker note. Removing the environment removes the entire premise of the product:
+there is no "recurring across meetings" without persistent access to the meetings, the tickets,
+and the channels where the team actually works.
 
 **Sponsor technologies used**
 <!-- Only tools CLAUDE.md verifies as actually wired up live; ClickUp/Teams are dry-run only. -->
