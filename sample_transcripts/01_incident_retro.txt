@@ -1,0 +1,42 @@
+Incident Retro — INC-4471 "Checkout latency spike"
+Date: 2026-09-12
+Attendees: Dana (data platform), Sam (payments), Priya (SRE), Marcus (eng manager)
+
+MARCUS: Alright, let's keep this blameless. Priya, walk us through the timeline.
+
+PRIYA: 14:02 UTC we started seeing p99 on checkout go from 300ms to about 9 seconds.
+Paged at 14:06. The cause was the payments service opening a new DB connection per
+request because the pool config got reverted in the last deploy.
+
+SAM: That was my change. I rebased badly and the pool settings went back to defaults.
+There was no test that would have caught it.
+
+MARCUS: Right, and that's the actionable bit, not the rebase. Sam, can you add a
+regression test that asserts the connection pool size at startup?
+
+SAM: Yeah, I'll get that in. Should be straightforward — I can have it up by the end
+of next week.
+
+PRIYA: The other thing that made this slower than it should have been is that our
+runbook for checkout still points at the old Grafana dashboard, so I lost about six
+minutes hunting for the right graphs.
+
+MARCUS: Priya, can you take updating the runbook? Let's say by the 28th.
+
+PRIYA: Sure.
+
+DANA: While we're here — and this isn't related to the incident, but it bit us again
+this week — the nightly ETL job failed silently again on Tuesday. No alert fired, we
+only noticed because the finance dashboard was empty on Wednesday morning.
+
+MARCUS: Again? Didn't we talk about this before?
+
+DANA: We did, and I patched the specific failure last time. But the job still doesn't
+page anyone when it dies, it just exits zero.
+
+MARCUS: OK, Dana, action item: make the nightly ETL failure actually alert someone.
+Can you get that done by the 29th?
+
+DANA: I'll take it.
+
+MARCUS: Good. That's three. Thanks everyone.

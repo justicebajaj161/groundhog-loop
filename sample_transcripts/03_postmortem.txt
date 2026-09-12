@@ -1,0 +1,50 @@
+Post-mortem — "Finance close delayed 2 days"
+Date: 2026-09-14
+Attendees: Dana, Marcus, Priya, Rachel (finance systems)
+
+RACHEL: From our side the impact was that month-end close slipped by two days. The
+revenue numbers we pulled on the 1st were incomplete and we didn't catch it until
+reconciliation on the 3rd.
+
+MARCUS: Dana, what's the technical story?
+
+DANA: Warehouse loads are backing up overnight. The batch window starts at 01:00 and
+it's supposed to finish by 05:00, but over the last three weeks it's been running past
+09:00. Once it runs long, the downstream aggregation jobs start on partial data
+instead of waiting, so the numbers look complete but aren't.
+
+RACHEL: That's the part that worries me most, honestly. Not that it was late — that it
+was silently wrong. We had no way to tell the difference between a finished load and
+a half-finished one.
+
+DANA: That's fair.
+
+MARCUS: Hold on. This is the third time we've had an action item about this pipeline
+in about six weeks. August retro, sprint 42, now this.
+
+DANA: It keeps coming back because we keep fixing the symptom. Last time it was the
+alerting, before that it was the timeout window. The actual problem is the whole thing
+is one monolithic batch job that can't be resumed or checkpointed.
+
+MARCUS: OK. Then let's stop patching. Dana, action item: write a design doc for
+checkpointing the warehouse batch pipeline so a partial run is detectable and
+resumable. Two weeks — the 23rd.
+
+DANA: That I can do properly.
+
+MARCUS: Rachel, in the meantime, can finance hold off on pulling numbers until there's
+a signal the load actually completed?
+
+RACHEL: If there's a signal, yes. Right now there isn't one.
+
+MARCUS: Dana, can you add a completion marker as a stopgap? Something finance can
+check. By the 12th.
+
+DANA: Yeah, that's a small change.
+
+PRIYA: I'd also like us to add the warehouse batch to the on-call dashboard. It's not
+on there at all right now, which is why nobody noticed it running long.
+
+MARCUS: Priya, take that one. By the 16th.
+
+PRIYA: Got it.

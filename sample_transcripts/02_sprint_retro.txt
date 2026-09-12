@@ -1,0 +1,49 @@
+Sprint 42 Retro
+Date: 2026-09-13
+Attendees: Dana, Sam, Priya, Marcus, Jules (QA)
+
+MARCUS: Standard format. What went well, what didn't, what are we changing.
+
+JULES: What went well — the new staging environment is genuinely faster to spin up.
+Went from forty minutes to about eight.
+
+SAM: Agreed. What didn't go well: we lost most of Thursday to the deploy.
+
+MARCUS: What happened Thursday?
+
+SAM: The staging data sync timed out during the deploy window, so staging was sitting
+on stale records for most of the day. QA couldn't sign off on the refund flow because
+the test accounts didn't have the right balances.
+
+JULES: Right, I basically couldn't test anything that touched account state. I ended
+up manually inserting rows, which is not a great use of an afternoon.
+
+DANA: That sync is the same pipeline I've been fighting with. It's timing out because
+the window is too tight and the source tables have grown a lot this quarter.
+
+MARCUS: Is that the thing you were looking at last month?
+
+DANA: Related, yeah. Different symptom.
+
+MARCUS: Let's get an action item on it. Dana, can you look at why the staging sync
+keeps timing out and either widen the window or make it incremental? By the 10th?
+
+DANA: I can look at it. Widening the window is the easy fix but it's a band-aid.
+
+MARCUS: Understood, take the band-aid for now and we'll talk about incremental later.
+
+JULES: Separate thing — we still don't have a way to seed test accounts with known
+balances. If we had that, Thursday would have been an inconvenience instead of a
+write-off.
+
+MARCUS: Good one. Jules, can you write up what you'd need for a test-data seeding
+tool? Not build it, just scope it, by the 15th.
+
+JULES: Yep.
+
+PRIYA: One more from me. The on-call handover doc hasn't been updated since June and
+two of the escalation contacts have left the company.
+
+MARCUS: Priya, take that. Same deadline, the 15th.
+
+PRIYA: Will do.

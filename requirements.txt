@@ -1,0 +1,15 @@
+# LLM + embeddings, both via OpenRouter's OpenAI-compatible endpoint
+openai>=1.97.0
+python-dotenv>=1.0.0
+
+# recurrence detection
+numpy>=2.0.0
+
+# ticket adapters (Jira, ClickUp) and the Teams webhook
+requests>=2.32.0
+
+# Slack: Bolt for the Socket Mode listener, slack-sdk for the Web API client
+slack-bolt>=1.30.0
+
+# optional -- only needed for `python scheduler.py --loop`
+apscheduler>=3.11.0
