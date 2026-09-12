@@ -4,7 +4,7 @@
 > every session, so it is the first thing any new session knows about this project.
 > **Keep it true.** See "Maintaining this file" at the bottom — updating it is not optional.
 
-**Last verified:** 2026-09-12 13:05 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`** — deepseek-v3.2 13/13, sonnet-5 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `anthropic/claude-sonnet-5` for chat, `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
+**Last verified:** 2026-09-12 13:05 (paid models, live Jira + live Slack, **Socket Mode connected**, **grouping now pinned by `test_grouping.py`**, **default model switched to `deepseek/deepseek-v3.2`** on 14/14 vs sonnet-5's 3/3) · **Status:** core complete and verified live end-to-end. Now on **paid** models throughout — `deepseek/deepseek-v3.2` for chat (switched from `anthropic/claude-sonnet-5` once the regression test made the comparison measurable), `openai/text-embedding-3-small` (1536-d) for embeddings — after the free pool 429d mid-run and silently cost a recurrence link. Two real bugs were found and fixed while getting the grouping stable: **groups were never merged** (a linked item was orphaned out of its own thread) and **extraction truncated the recurrence evidence** to one sentence. Latest live run: **KAN-44 … KAN-52, group {3,4,7,8}, both escalations fired, zero 429s, 11/11 Slack deliveries.**
 The grouping is no longer unpinned: `test_grouping.py` asserts it end-to-end against the real models with zero external side effects, and is the preflight to run before recording.
 
 ---
@@ -233,7 +233,7 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
 
   | model | result | cost/run | wall |
   |---|---|---|---|
-  | `deepseek/deepseek-v3.2` | **13/13** under the test | ~$0.01 | 36-48s |
+  | `deepseek/deepseek-v3.2` **(default)** | **14/14** under the test | ~$0.01 | 36-48s |
   | `anthropic/claude-sonnet-5` | **3/3** (2 by hand + 1 under the test) | ~$0.10-0.15 | 76s |
   | `deepseek/deepseek-chat-v3.1` | 1/2 — one run lost #3 entirely | ~$0.01 | — |
   | `openai/gpt-5-mini` | over-grouped to 6 items and invented a 10th action item | — | — |
@@ -250,9 +250,10 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   a 99% model. sonnet-5's 3 runs bound essentially nothing. Neither sample is large; v3.2's is
   simply 4x larger. ~30 runs would be needed to bound failure under 10%, which is ~$0.30 and
   ~22 minutes on v3.2 and impractical on sonnet-5.
-  **Either is defensible for the recording. v3.2 is the better-evidenced choice**; sonnet-5 is the
-  conservative one on reputation rather than on measurement. The preflight makes the difference
-  small either way, because a bad run is caught before it is recorded.
+  **DECIDED 2026-09-12: v3.2 is the default**, in `.env`, `env.example` and `config.py`'s
+  built-in fallback. sonnet-5 remains verified on the same code path and is a one-value swap
+  back. The preflight makes the difference small either way, because a bad run is caught
+  before it is recorded.
 - **Recall bands RE-MEASURED for the new embedder, and they still overlap.** On
   `openai/text-embedding-3-small`: weakest TRUE cross-meeting pair **0.2425** (#4↔#8), strongest
   UNRELATED **0.4121** (#6↔#9). Second independent confirmation that **no single cutoff separates**
@@ -505,8 +506,8 @@ Adding a platform = one new file + one line in that manager's `REGISTRY`. Nothin
   ```
 
   A red `FAIL` line names what drifted. Re-run; if it fails twice, switch `LLM_MODEL` to
-  `deepseek/deepseek-v3.2` (**13/13** measured, ~$0.01/run, ~40s) rather than recording a
-  degraded story. On the measured evidence v3.2 is the safer default of the two.
+  `anthropic/claude-sonnet-5` (3/3 measured) rather than recording a degraded story —
+  the default is now `deepseek/deepseek-v3.2` (**14/14** measured, ~$0.01/run, ~40s).
 - **POSTFLIGHT, after the real run.** `.venv/bin/python test_grouping.py --check-db items.db`
   grades what actually landed in the database. No model calls, no cost, instant. This is how you
   find out whether #9 joined before you narrate it.

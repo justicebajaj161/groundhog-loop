@@ -185,7 +185,7 @@ def reload() -> None:
     # LLM layer -- provider is OpenRouter; the *model* is the only swap point.
     g["OPENROUTER_API_KEY"] = _opt("OPENROUTER_API_KEY")
     g["OPENROUTER_BASE_URL"] = _str("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    g["LLM_MODEL"] = _str("LLM_MODEL", "anthropic/claude-sonnet-5")
+    g["LLM_MODEL"] = _str("LLM_MODEL", "deepseek/deepseek-v3.2")
     # 0.0, not 0.1: extraction must reproduce run-to-run for a scripted demo.
     # Note this reduces variance, it does not guarantee determinism -- providers
     # batch and route non-deterministically regardless of temperature.

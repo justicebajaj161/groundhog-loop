@@ -21,9 +21,11 @@ We did rely on the following external building blocks, all standard open-source 
 hosted APIs rather than hackathon-specific starter code:
 
 - OpenRouter as the single API gateway for all model calls (chat completion and embeddings),
-  configured so the underlying model (currently Claude Sonnet 5 for reasoning, OpenAI's
+  configured so the underlying model (currently DeepSeek V3.2 for reasoning, OpenAI's
   `text-embedding-3-small` for semantic matching) can be swapped via one config value with no
-  code changes.
+  code changes. That swap is not a claim — it was measured: our regression test grades the
+  recurrence output per model, and Claude Sonnet 5 and DeepSeek V3.2 both produce the correct
+  grouping with only `LLM_MODEL` changed.
 - Slack Bolt SDK and Atlassian/ClickUp's official REST APIs for platform integration.
 - OpenRouter-hosted embeddings for the semantic recall pass used in recurrence detection.
 - Standard Python libraries (SQLite for storage, APScheduler for the nudge scheduler).
@@ -94,8 +96,12 @@ and the channels where the team actually works.
 
 **Sponsor technologies used**
 <!-- Only tools CLAUDE.md verifies as actually wired up live; ClickUp/Teams are dry-run only. -->
-- **OpenRouter** (`anthropic/claude-sonnet-5` for extraction/adjudication,
+- **OpenRouter** (`deepseek/deepseek-v3.2` for extraction/adjudication,
   `openai/text-embedding-3-small` for recurrence embeddings) — live, paid, billing confirmed.
+  `anthropic/claude-sonnet-5` is verified on the same code path with no changes beyond the one
+  config value; DeepSeek V3.2 is the default because it scored 13/13 on our grouping regression
+  test against Sonnet 5's 3/3, at roughly a tenth of the cost and with more provider endpoints
+  to fall back on.
 - **Jira** (Cloud v3 API) — live ticket creation, status transitions, cross-link comments on a
   real project (KAN).
 - **Slack** (Web API + Socket Mode) — live channel posts, DMs, and a real button-press round trip
